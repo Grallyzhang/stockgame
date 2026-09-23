@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>股市小镇 · 股票学习游戏（第一阶段原型）</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="brand">股市小镇<span class="tag">教学原型 · 虚构市场</span></div>
+  <div id="stats" class="stats"></div>
+  <div class="actions">
+    <button id="btn-next" class="btn primary">下一天</button>
+    <button id="btn-auto" class="btn">自动播放</button>
+    <button id="btn-review" class="btn" disabled>复盘</button>
+    <button id="btn-mode" class="btn">切换模式</button>
+    <button id="btn-reset" class="btn danger">重新开始</button>
+  </div>
+</header>
+<main id="layout">
+  <section id="left">
+    <div id="town" aria-label="小镇场景"></div>
+    <div id="task-card"></div>
+  </section>
+  <aside id="right">
+    <nav id="tabs"></nav>
+    <div id="panel"></div>
+  </aside>
+</main>
+<footer id="timeline-wrap">
+  <button id="timeline-toggle" aria-label="展开或收起操作记录">操作记录</button>
+  <div id="timeline"></div>
+</footer>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
