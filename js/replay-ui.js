@@ -276,7 +276,7 @@ function aiHTML(ctx) {
       <input id="ai-q" type="text" maxlength="500" placeholder="输入你的问题…" value="${esc(rui.aiDraft)}" ${rui.aiBusy ? 'disabled' : ''}>
       <button class="btn primary" id="ai-send" ${rui.aiBusy ? 'disabled' : ''}>发送</button>
     </div>
-    <div class="ai-foot">由 DeepSeek（${cfg.model}）生成，仅供学习参考，不构成投资建议 · <a href="javascript:void 0" id="ai-clear-key">更换密钥</a></div>`;
+    <div class="ai-foot">由 DeepSeek（${cfg.model}）生成，仅供学习参考，不构成投资建议 · ${ai.usingProxy() ? '站点代理免费提供' : '使用你的密钥'} · <a href="javascript:void 0" id="ai-clear-key">${ai.usingProxy() ? '换用自己的密钥' : '更换密钥'}</a></div>`;
 }
 
 function infoHTML(ctx) {

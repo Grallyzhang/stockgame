@@ -10,6 +10,10 @@ const AI_CFG_KEY = 'stock-town-ai-config';
 const API_URL = 'https://api.deepseek.com/chat/completions';
 const DEFAULT_MODEL = 'deepseek-chat';
 
+// 站点代理（Cloudflare Worker，见 worker/ 目录）：填上代理地址后，访客无需密钥即可使用 AI 问答。
+// 留空则恢复「用户自填密钥」模式。部署方法见 worker/wrangler.toml 顶部注释。
+const PROXY_URL = '';
+
 export function loadConfig() {
   try {
     const c = JSON.parse(localStorage.getItem(AI_CFG_KEY) || '{}');
@@ -19,7 +23,9 @@ export function loadConfig() {
 export function saveConfig(cfg) {
   try { localStorage.setItem(AI_CFG_KEY, JSON.stringify({ apiKey: cfg.apiKey || '', model: cfg.model || DEFAULT_MODEL })); } catch { /* ignore */ }
 }
-export const hasKey = () => !!loadConfig().apiKey;
+// 有用户密钥或站点代理任一即可使用
+export const hasKey = () => !!loadConfig().apiKey || !!PROXY_URL;
+export const usingProxy = () => !loadConfig().apiKey && !!PROXY_URL;
 
 const SYSTEM_PROMPT = `你是「股市小镇」股票学习游戏里的教学助手，面向零基础学习者。请严格遵守：
 1. 只基于用户提供的「截至当日的可见信息」回答，不得编造、暗示或预测未来走势与剧本结局；
@@ -69,14 +75,20 @@ export function buildContext({ sc, bars, run, day }) {
 }
 
 // 调用 DeepSeek（OpenAI 兼容接口）。返回助手文本；失败抛出带用户可读信息的 Error。
+// 用户自填密钥时直连 DeepSeek；无密钥时走站点代理（PROXY_URL，密钥在服务端）。
 export async function ask(cfg, contextText, question, { timeoutMs = 45000 } = {}) {
+  const viaProxy = !cfg.apiKey && !!PROXY_URL;
+  const url = viaProxy ? PROXY_URL : API_URL;
+  const headers = { 'Content-Type': 'application/json' };
+  if (!viaProxy) headers.Authorization = `Bearer ${cfg.apiKey}`;
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res;
   try {
-    res = await fetch(API_URL, {
+    res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cfg.apiKey}` },
+      headers,
       body: JSON.stringify({
         model: cfg.model || DEFAULT_MODEL,
         stream: false,
@@ -91,12 +103,14 @@ export async function ask(cfg, contextText, question, { timeoutMs = 45000 } = {}
     });
   } catch (err) {
     if (err.name === 'AbortError') throw new Error('请求超时（45 秒）。网络较慢或接口繁忙，请稍后再试。');
-    throw new Error('无法连接 DeepSeek 接口（网络异常或浏览器拦截）。请检查网络后重试。');
+    throw new Error(viaProxy ? '无法连接站点代理（网络异常）。请稍后再试。' : '无法连接 DeepSeek 接口（网络异常或浏览器拦截）。请检查网络后重试。');
   } finally {
     clearTimeout(timer);
   }
-  if (res.status === 401 || res.status === 403) throw new Error('API 密钥无效或已过期。请在上方设置中检查密钥。');
-  if (res.status === 402) throw new Error('DeepSeek 账户余额不足，请到平台充值后再试。');
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(viaProxy ? '站点 AI 服务暂时不可用，请稍后再试。' : 'API 密钥无效或已过期。请在上方设置中检查密钥。');
+  }
+  if (res.status === 402) throw new Error(viaProxy ? '站点 AI 额度已用完，请稍后再试。' : 'DeepSeek 账户余额不足，请到平台充值后再试。');
   if (res.status === 429) throw new Error('请求过于频繁，稍等几秒再试。');
   if (!res.ok) throw new Error(`接口返回错误（HTTP ${res.status}），请稍后再试。`);
   const data = await res.json();
